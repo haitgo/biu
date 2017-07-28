@@ -46,16 +46,16 @@ func (this *Writer) Status() int {
 }
 
 //类似php的ob_start
-func (this *Writer) ObStart() {
+func (this *Writer) OBstart() {
 	this.obStart = true
 }
 
 //获取ob缓存数据
-func (this *Writer) ObGetData() []byte {
+func (this *Writer) OBget() []byte {
 	return this.obCache
 }
 
 //输出ob缓存内容
-func (this *Writer) ObFlush() {
+func (this *Writer) OBflush() {
 	this.writer.Write(this.obCache)
 }

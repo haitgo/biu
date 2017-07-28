@@ -20,22 +20,22 @@ const (
 //路由匹配-----------------------------------------------------------------------
 type pathMatch struct {
 	needMatch bool              //是否需要匹配
-	path      string            //路径
+	matchPath string            //路径
 	pattens   map[string]string //正则式
 	match     *regexp.Regexp    //路由参数match对象
 }
 
-//添加路径
-func (this *pathMatch) setPath(path string) {
-	this.path = strings.Replace(path, ".", "\\.", -1)
+//添加匹配路径
+func (this *pathMatch) addMatchPath(path string) {
+	this.matchPath = strings.Replace(path, ".", "\\.", -1)
 	this.pattens = make(map[string]string)
 	if strings.Index(path, "{") > 0 && strings.Index(path, "}") > 0 {
 		this.needMatch = true
 	}
 }
 
-//添加规则
-func (this *pathMatch) addPatten(name, patten string) {
+//添加匹配规则
+func (this *pathMatch) addMatchPatten(name, patten string) {
 	this.pattens[name] = patten
 }
 
@@ -46,7 +46,7 @@ func (this *pathMatch) matching(path string) (params map[string]string, newPath 
 	}
 	var err error
 	if this.match == nil {
-		pathPatten := "^" + this.path
+		pathPatten := "^" + this.matchPath
 		matchName, _ := regexp.Compile(`\{([\w]+)\}`)
 		names := matchName.FindAllStringSubmatch(pathPatten, -1)
 		if names == nil {
@@ -64,9 +64,9 @@ func (this *pathMatch) matching(path string) (params map[string]string, newPath 
 		if err != nil {
 			log.Fatal("[biu]", err)
 		}
-		log.Println("正则", path, "\t", pathPatten)
+		//log.Println("正则", path, "\t", pathPatten)
 	}
-	newPath = this.path
+	newPath = this.matchPath
 	params = make(map[string]string)
 	match := this.match.FindStringSubmatch(path)
 	if match == nil {
@@ -78,90 +78,104 @@ func (this *pathMatch) matching(path string) (params map[string]string, newPath 
 		}
 		params[name] = match[i]
 		newPath = strings.Replace(newPath, "{"+name+"}", match[i], -1)
-
 	}
 	return
 }
 
 //路由节点------------------------------------------------------------------------
 type node struct {
-	method    string        //请求方法
-	handle    ControlHandle //控制器处理方法
-	pathMatch               //继承路径匹配对象
+	method    string     //请求方法
+	path      string     //路径（截取后的段路径)
+	handle    HandleFunc //控制器处理方法
+	pathMatch            //继承路径匹配对象
 }
 
 func (this *node) Match(name, patten string) *node {
-	this.addPatten(name, patten)
+	this.addMatchPatten(name, patten)
 	return this
 }
 
 //回调-----------------------------------------------------------------------
-type ControlHandle func(*Content)
+type HandleFunc func(*Context)
 
 //路由-----------------------------------------------------------------------
 type Route struct {
-	middle    []ControlHandle   //中间件
-	nodes     map[string]*node  //终节点
-	child     map[string]*Route //子路由
-	pathMatch                   //继承路径匹配对象
+	path        string       //路径（截取后的段路径)
+	domain      string       //域名设置
+	middleware  []HandleFunc //中间件
+	nodes       []*node      //终节点
+	childRoute  []*Route     //子路由
+	domainRoute []*Route     //域名路由
+	pathMatch                //继承路径匹配对象
 }
 
 //创建路由
 func newRoute() *Route {
 	r := new(Route)
-	r.child = make(map[string]*Route)
-	r.nodes = make(map[string]*node)
-	r.middle = make([]ControlHandle, 0)
+	r.nodes = make([]*node, 0)
+	r.childRoute = make([]*Route, 0)
+	r.domainRoute = make([]*Route, 0)
+	r.middleware = make([]HandleFunc, 0)
 	return r
 }
 
 func (this *Route) Match(name, patten string) *Route {
-	this.addPatten(name, patten)
+	this.addMatchPatten(name, patten)
 	return this
 }
 
 //get请求
-func (this *Route) Get(path string, call ControlHandle) *node {
+func (this *Route) Get(path string, call HandleFunc) *node {
 	return this.addNode(M_GET, path, call)
 }
 
 //post请求
-func (this *Route) Post(path string, call ControlHandle) *node {
+func (this *Route) Post(path string, call HandleFunc) *node {
 	return this.addNode(M_POST, path, call)
 }
 
 //put请求
-func (this *Route) Put(path string, call ControlHandle) *node {
+func (this *Route) Put(path string, call HandleFunc) *node {
 	return this.addNode(M_PUT, path, call)
 }
 
 //del请求
-func (this *Route) Delete(path string, call ControlHandle) *node {
+func (this *Route) Delete(path string, call HandleFunc) *node {
 	return this.addNode(M_DELETE, path, call)
 }
 
 //任意请求
-func (this *Route) Any(path string, call ControlHandle) *node {
+func (this *Route) Any(path string, call HandleFunc) *node {
 	return this.addNode(M_ANY, path, call)
 }
 
 //添加路由节点
-func (this *Route) addNode(method, path string, call ControlHandle) *node {
+func (this *Route) addNode(method, path string, call HandleFunc) *node {
 	n := &node{method: method, handle: call}
-	n.setPath(path)
-	this.nodes[path] = n
+	n.addMatchPath(path)
+	n.path = path
+	this.nodes = append(this.nodes, n)
 	return n
+}
+
+//域名限制,可输入多个域名
+func (this *Route) Domain(domain string) *Route {
+	rt := newRoute()
+	rt.domain = domain
+	this.domainRoute = append(this.domainRoute, rt)
+	return rt
 }
 
 //路由分组
 func (this *Route) Group(path string) *Route {
 	rt := newRoute()
-	rt.setPath(path)
-	this.child[path] = rt
+	rt.addMatchPath(path)
+	rt.path = path
+	this.childRoute = append(this.childRoute, rt)
 	return rt
 }
 
 //中间件
-func (this *Route) Middleware(call ...ControlHandle) {
-	this.middle = append(this.middle, call...)
+func (this *Route) Middleware(call ...HandleFunc) {
+	this.middleware = append(this.middleware, call...)
 }

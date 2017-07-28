@@ -1,4 +1,4 @@
-package biu
+package session
 
 import (
 	"encoding/json"

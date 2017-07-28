@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-type Sessioner interface {
+type SessionBase interface {
 	Server(http.ResponseWriter, *http.Request)
 	//session编号
 	SessionId() string

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 )
@@ -51,10 +52,20 @@ func (this *Upload) filterExt(ext string) bool {
 	return false
 }
 
-//上传文件
-func (this *Upload) GetFile() (*fileData, error) {
+//保存文件，入股目录不存在则自动创建
+func (this *Upload) WriteFile(filePath string) error {
 	bt, err := this.handle(this.formName)
-	return &fileData{bt}, err
+	if err != nil {
+		return err
+	}
+	dir := path.Dir(filePath)
+	if err := os.MkdirAll(dir, 744); err != nil {
+		return err
+	}
+	if len(bt) == 0 {
+		return errors.New("上传资源无法保存")
+	}
+	return ioutil.WriteFile(filePath, bt, 755)
 }
 
 //上传图片
@@ -86,4 +97,5 @@ func (this *Upload) handle(name string) ([]byte, error) {
 		return nil, errors.New("上传文件过大。")
 	}
 	return bytes, nil
+
 }
