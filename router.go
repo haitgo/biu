@@ -66,12 +66,12 @@ func (this *pathMatch) matching(path string) (params map[string]string, newPath 
 		}
 		//log.Println("正则", path, "\t", pathPatten)
 	}
-	newPath = this.matchPath
 	params = make(map[string]string)
 	match := this.match.FindStringSubmatch(path)
 	if match == nil {
 		return
 	}
+	newPath = this.matchPath
 	for i, name := range this.match.SubexpNames() {
 		if i == 0 || name == "" {
 			continue

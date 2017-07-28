@@ -57,19 +57,20 @@ func main() {
 		at := rt.Domain("127.0.0.1")
 		{
 			at.Get("/test", domainA)
+			at.Get("/aaa", call)
+			at.Get("/bbb.html", call)
+			g := at.Group("/bbb")
+			{
+				g.Get(`/ccc`, call2)
+				g.Middleware(middle2)
+				g.Get(`/{age}.html`, call2).Match("age", `[\d]{5}`)
+			}
 		}
 		bt := rt.Domain("localhost")
 		{
 			bt.Get("/test", domainB)
 		}
-		rt.Get("/aaa", call)
-		rt.Get("/bbb.html", call)
-		g := rt.Group("/bbb")
-		{
-			g.Get(`/ccc`, call2)
-			g.Middleware(middle2)
-			g.Get(`/{age}.html`, call2).Match("age", `[\d]{5}`)
-		}
+
 	})
 	b.Run(":992")
 }

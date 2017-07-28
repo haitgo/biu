@@ -80,11 +80,12 @@ func (this *Biu) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		isAbort = true
 	}
 	for index, _ := range handles {
-		if !called[index] && !isAbort {
+		if isAbort {
+			return
+		} else if !called[index] {
 			nextFunc(index)
 		}
 	}
-	return
 }
 
 //静态文件处理
