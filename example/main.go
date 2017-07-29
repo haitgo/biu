@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/haitgo/biu"
@@ -14,7 +15,8 @@ func test() {
 	})
 }
 func domainA(c *biu.Context) {
-	c.Writer.Write([]byte("domain a."))
+	time.Sleep(time.Second * 2)
+	c.Status(200).String("domain a.")
 }
 func domainB(c *biu.Context) {
 	c.Writer.Write([]byte("domain b."))
@@ -31,7 +33,6 @@ func call2(c *biu.Context) {
 }
 func middle1(c *biu.Context) {
 	fmt.Println("中间件开始1")
-
 	c.Next()
 	fmt.Println("中间件结束1")
 }
@@ -54,6 +55,7 @@ func main() {
 	b.Server.WriteTimeout = 1
 	b.StaticPath("tmp")
 	b.Route(func(rt *biu.Route) {
+		rt.Middleware(biu.Debug())
 		at := rt.Domain("127.0.0.1")
 		{
 			at.Get("/test", domainA)
@@ -72,5 +74,5 @@ func main() {
 		}
 
 	})
-	b.Run(":992")
+	b.Run(":998")
 }
